@@ -1,15 +1,13 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { User } from '@supabase/supabase-js'
+import React, { createContext, useContext, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 interface AuthContextType {
-  user: User | null
+  user: any
   userData: any
   loading: boolean
-  signUp: (email: string, password: string, username: string) => Promise<any>
+  signUp: (username: string, email: string, password: string) => Promise<any>
   signIn: (email: string, password: string) => Promise<any>
-  signOut: () => Promise<void>
-  resetPassword: (email: string) => Promise<any>
+  signOut: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -23,162 +21,72 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<any>(null)
   const [userData, setUserData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchUserData(session.user.id)
-      }
+  const signUp = async (username: string, email: string, password: string) => {
+    setLoading(true)
+    try {
+      // Check if email exists
+      const { data: existingEmail } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .maybeSingle()
+
+      if (existingEmail) throw new Error('Email already registered')
+
+      // Check if username exists
+      const { data: existingUsername } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .maybeSingle()
+
+      if (existingUsername) throw new Error('Username already taken')
+
+      // Insert new user
+      const { data, error } = await supabase
+        .from('users')
+        .insert([{ username, email, password }]) // 🔴 password stored as plain text (later hash it)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
+    } finally {
       setLoading(false)
-    })
+    }
+  }
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await fetchUserData(session.user.id)
-        } else {
-          setUserData(null)
-        }
-        setLoading(false)
-      }
-    )
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  const fetchUserData = async (userId: string) => {
+  const signIn = async (email: string, password: string) => {
+    setLoading(true)
     try {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', userId)
-        .single()
-      
-      if (!error && data) {
-        setUserData(data)
-      }
-    } catch (error) {
-      console.error('Error fetching user data:', error)
+        .eq('email', email)
+        .eq('password', password)
+        .maybeSingle()
+
+      if (error || !data) throw new Error('Invalid email or password')
+
+      setUser(data)
+      setUserData(data)
+      return data
+    } finally {
+      setLoading(false)
     }
   }
 
-  const signUp = async (email: string, password: string, username: string) => {
-    // Check if username already exists
-    const { data: existingUsername } = await supabase
-      .from('users')
-      .select('username')
-      .eq('username', username)
-      .single()
-
-    if (existingUsername) {
-      throw new Error('Username already taken')
-    }
-
-    // Check if email already exists
-    const { data: existingEmail } = await supabase
-      .from('users')
-      .select('email')
-      .eq('email', email)
-      .single()
-
-    if (existingEmail) {
-      throw new Error('Email already registered')
-    }
-
-    // Sign up with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: undefined, // Disable email confirmation
-      }
-    })
-
-    if (authError) throw authError
-    if (!authData.user) throw new Error('Failed to create user')
-
-    // Create user record in our custom table
-    const { error: userError } = await supabase
-      .from('users')
-      .insert([
-        {
-          id: authData.user.id,
-          email,
-          username,
-        }
-      ])
-
-    if (userError) {
-      throw new Error(userError.message)
-    }
-
-    // Create business card record
-    const { error: cardError } = await supabase
-      .from('business_cards')
-      .insert([
-        {
-          user_id: authData.user.id,
-          personal_info: {},
-          business_info: {},
-          social_media: {},
-          office_showcase: { images: [] },
-          media_integration: {},
-          google_reviews: {},
-          theme_customization: { template: 'modern', primary_color: '#3B82F6', secondary_color: '#8B5CF6' },
-          is_published: false,
-        }
-      ])
-
-    if (cardError) {
-      console.warn('Failed to create business card:', cardError.message)
-    }
-
-    return authData
-  }
-
-  const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (error) throw error
-    return data
-  }
-
-  const signOut = async () => {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-  }
-
-  const resetPassword = async (email: string) => {
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    })
-
-    if (error) throw error
-    return data
-  }
-
-  const value = {
-    user,
-    userData,
-    loading,
-    signUp,
-    signIn,
-    signOut,
-    resetPassword,
+  const signOut = () => {
+    setUser(null)
+    setUserData(null)
   }
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, userData, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )
