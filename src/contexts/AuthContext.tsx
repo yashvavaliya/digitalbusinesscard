@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (userError) {
       // If user creation fails, clean up the auth user
-      await supabase.auth.admin.deleteUser(authData.user.id)
+      console.error('Failed to create user record:', userError)
       throw new Error(userError.message)
     }
 
@@ -119,6 +119,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           personal_info: {},
           business_info: {},
           social_media: {},
+          office_showcase: { images: [] },
+          media_integration: {},
+          google_reviews: {},
+          theme_customization: { template: 'modern', primary_color: '#3B82F6', secondary_color: '#8B5CF6' },
           is_published: false,
         }
       ])

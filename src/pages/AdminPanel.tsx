@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -102,13 +102,12 @@ const THEME_TEMPLATES = [
 ]
 
 export default function AdminPanel() {
-  const { username } = useParams()
   const navigate = useNavigate()
   const { user, userData, signOut } = useAuth()
   const [activeSection, setActiveSection] = useState('personal')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
-  const [newUsername, setNewUsername] = useState(username || '')
+  const [newUsername, setNewUsername] = useState('')
   const [businessCard, setBusinessCard] = useState<BusinessCardData>({
     personal_info: {},
     business_info: {},
@@ -122,13 +121,19 @@ export default function AdminPanel() {
   const [isSaving, setIsSaving] = useState(false)
   const [previewMode, setPreviewMode] = useState(false)
 
-  // Check if user has access to this admin panel
+  // Redirect to auth if not logged in
   useEffect(() => {
-    if (user && userData && userData.username !== username) {
-      // Redirect to correct admin panel if username doesn't match
-      navigate(`/businesscard/admin/${userData.username}`, { replace: true })
+    if (!user) {
+      navigate('/businesscard', { replace: true })
     }
-  }, [user, userData, username, navigate])
+  }, [user, navigate])
+
+  // Set initial username when userData loads
+  useEffect(() => {
+    if (userData?.username) {
+      setNewUsername(userData.username)
+    }
+  }, [userData])
 
   useEffect(() => {
     if (user && userData) {
@@ -230,7 +235,7 @@ export default function AdminPanel() {
   }
 
   const handleUsernameUpdate = async () => {
-    if (!user || newUsername === username) {
+    if (!user || newUsername === userData?.username) {
       setIsEditing(false)
       return
     }
@@ -256,7 +261,8 @@ export default function AdminPanel() {
       if (error) throw error
 
       toast.success('Username updated successfully!')
-      navigate(`/businesscard/admin/${newUsername}`, { replace: true })
+      // Refresh user data to get updated username
+      window.location.reload()
       setIsEditing(false)
     } catch (error) {
       toast.error('Failed to update username')
@@ -858,7 +864,7 @@ export default function AdminPanel() {
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium text-gray-900 truncate">@{username}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">@{userData?.username}</p>
                     <button
                       onClick={() => setIsEditing(true)}
                       className="text-gray-400 hover:text-gray-600"
@@ -891,6 +897,17 @@ export default function AdminPanel() {
                   <Icon className="w-5 h-5 mr-3" />
                   {item.label}
                 </button>
+                {userData?.username && (
+                  <a
+                    href={`/businesscard/${userData.username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 bg-indigo-100 text-indigo-700 font-medium rounded-xl hover:bg-indigo-200 transition-colors"
+                  >
+                    <Globe className="w-4 h-4 mr-2" />
+                    View Public Card
+                  </a>
+                )}
               )
             })}
           </nav>

@@ -32,7 +32,7 @@ export default function AuthPage() {
   // Redirect if already authenticated
   React.useEffect(() => {
     if (user && userData?.username) {
-      navigate(`/businesscard/admin/${userData.username}`)
+      navigate('/businesscard/admin')
     }
   }, [user, userData, navigate])
 
@@ -52,7 +52,7 @@ export default function AuthPage() {
     try {
       await signUp(data.email, data.password, data.username)
       toast.success('Account created successfully!')
-      navigate(`/businesscard/admin/${data.username}`)
+      navigate('/businesscard/admin')
     } catch (error: any) {
       toast.error(error.message || 'Failed to create account')
     }

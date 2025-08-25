@@ -6,6 +6,7 @@ import Layout from './components/Layout'
 import Welcome from './pages/Welcome'
 import AuthPage from './pages/AuthPage'
 import AdminPanel from './pages/AdminPanel'
+import PublicBusinessCard from './pages/PublicBusinessCard'
 import SetupInstructions from './components/SetupInstructions'
 
 function App() {
@@ -39,7 +40,8 @@ function App() {
             <Route path="/" element={<Layout />}>
               <Route index element={<Welcome />} />
               <Route path="businesscard" element={<AuthPage />} />
-              <Route path="businesscard/admin/:username" element={<AdminPanel />} />
+              <Route path="businesscard/admin" element={<AdminPanel />} />
+              <Route path="businesscard/:username" element={<PublicBusinessCard />} />
             </Route>
           </Routes>
         </div>
