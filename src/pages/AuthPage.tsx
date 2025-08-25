@@ -25,6 +25,7 @@ const resetSchema = yup.object({
 export default function AuthPage() {
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin')
   const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { signUp, signIn, resetPassword, user, userData } = useAuth()
@@ -49,32 +50,43 @@ export default function AuthPage() {
   })
 
   const onSignUp = async (data: any) => {
+    setLoading(true)
     try {
       await signUp(data.email, data.password, data.username)
       toast.success('Account created successfully!')
-      navigate(`/businesscard/admin/${data.username}`)
+      // Switch to sign in mode after successful signup
+      setMode('signin')
+      toast.success('Account created! Please sign in with your credentials.')
     } catch (error: any) {
       toast.error(error.message || 'Failed to create account')
+    } finally {
+      setLoading(false)
     }
   }
 
   const onSignIn = async (data: any) => {
+    setLoading(true)
     try {
       await signIn(data.email, data.password)
       toast.success('Signed in successfully!')
       // The redirect will be handled by the auth context effect
     } catch (error: any) {
       toast.error(error.message || 'Failed to sign in')
+    } finally {
+      setLoading(false)
     }
   }
 
   const onReset = async (data: any) => {
+    setLoading(true)
     try {
       await resetPassword(data.email)
       toast.success('Password reset email sent!')
       setMode('signin')
     } catch (error: any) {
       toast.error(error.message || 'Failed to send reset email')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -93,12 +105,12 @@ export default function AuthPage() {
             
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               {mode === 'signin' && 'Welcome Back'}
-              {mode === 'signup' && 'Create Account'}
+              {mode === 'signup' && 'Create Your Account'}
               {mode === 'reset' && 'Reset Password'}
             </h1>
             <p className="text-gray-600">
               {mode === 'signin' && 'Sign in to manage your business card'}
-              {mode === 'signup' && 'Get started with your digital business card'}
+              {mode === 'signup' && 'Join thousands of professionals with digital business cards'}
               {mode === 'reset' && 'Enter your email to reset your password'}
             </p>
           </div>
@@ -174,10 +186,10 @@ export default function AuthPage() {
 
               <button
                 type="submit"
-                disabled={signUpForm.formState.isSubmitting}
+                disabled={loading}
                 className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {signUpForm.formState.isSubmitting ? 'Creating Account...' : 'Create Account'}
+                {loading ? 'Creating Account...' : 'Create Account'}
               </button>
 
               <p className="text-center text-sm text-gray-600">
@@ -254,10 +266,10 @@ export default function AuthPage() {
 
               <button
                 type="submit"
-                disabled={signInForm.formState.isSubmitting}
+                disabled={loading}
                 className="w-full py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:shadow-lg transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {signInForm.formState.isSubmitting ? 'Signing In...' : 'Sign In'}
+                {loading ? 'Signing In...' : 'Sign In'}
               </button>
 
               <p className="text-center text-sm text-gray-600">
@@ -297,10 +309,10 @@ export default function AuthPage() {
 
               <button
                 type="submit"
-                disabled={resetForm.formState.isSubmitting}
+                disabled={loading}
                 className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl hover:shadow-lg transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {resetForm.formState.isSubmitting ? 'Sending...' : 'Send Reset Email'}
+                {loading ? 'Sending...' : 'Send Reset Email'}
               </button>
 
               <p className="text-center text-sm text-gray-600">

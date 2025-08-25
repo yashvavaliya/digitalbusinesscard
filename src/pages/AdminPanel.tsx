@@ -122,6 +122,14 @@ export default function AdminPanel() {
   const [isSaving, setIsSaving] = useState(false)
   const [previewMode, setPreviewMode] = useState(false)
 
+  // Check if user has access to this admin panel
+  useEffect(() => {
+    if (user && userData && userData.username !== username) {
+      // Redirect to correct admin panel if username doesn't match
+      navigate(`/businesscard/admin/${userData.username}`, { replace: true })
+    }
+  }, [user, userData, username, navigate])
+
   useEffect(() => {
     if (user && userData) {
       fetchBusinessCard()

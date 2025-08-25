@@ -81,17 +81,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error('Username already taken')
     }
 
+    // Check if email already exists
+    const { data: existingEmail } = await supabase
+      .from('users')
+      .select('email')
+      .eq('email', email)
+      .single()
+
+    if (existingEmail) {
+      throw new Error('Email already registered')
+    }
+
     // Sign up with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: undefined, // Disable email confirmation
+      }
     })
 
     if (authError) throw authError
     if (!authData.user) throw new Error('Failed to create user')
-
-    // Wait a moment for the auth user to be fully created
-    await new Promise(resolve => setTimeout(resolve, 1000))
 
     // Create user record in our custom table
     const { error: userError } = await supabase
@@ -105,8 +116,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ])
 
     if (userError) {
-      // If user creation fails, clean up the auth user
-      await supabase.auth.admin.deleteUser(authData.user.id)
       throw new Error(userError.message)
     }
 
@@ -119,6 +128,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           personal_info: {},
           business_info: {},
           social_media: {},
+          office_showcase: { images: [] },
+          media_integration: {},
+          google_reviews: {},
+          theme_customization: { template: 'modern', primary_color: '#3B82F6', secondary_color: '#8B5CF6' },
           is_published: false,
         }
       ])
