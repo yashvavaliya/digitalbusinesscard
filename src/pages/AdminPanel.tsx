@@ -123,15 +123,11 @@ export default function AdminPanel() {
 
   // Redirect to auth if not logged in
   useEffect(() => {
-    if (!loading && !user) {
+    if (!user) {
       console.log('No user found, redirecting to auth')
       navigate('/businesscard', { replace: true })
-    } else if (user && !userData && !loading) {
-      console.log('User found but no user data, might be a new user')
-      // Try to fetch user data again
-      fetchBusinessCard()
     }
-  }, [user, userData, loading, navigate])
+  }, [user, navigate])
 
   // Set initial username when userData loads
   useEffect(() => {
@@ -300,6 +296,38 @@ export default function AdminPanel() {
       toast.success('🎉 Business card published successfully!')
     } catch (error) {
       toast.error('Failed to publish business card')
+      console.error('Publish error:', error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!user) return
+
+    setIsSaving(true)
+    try {
+      const { error } = await supabase
+        .from('business_cards')
+        .upsert({
+          user_id: user.id,
+          personal_info: businessCard.personal_info,
+          business_info: businessCard.business_info,
+          social_media: businessCard.social_media,
+          office_showcase: businessCard.office_showcase,
+          media_integration: businessCard.media_integration,
+          google_reviews: businessCard.google_reviews,
+          theme_customization: businessCard.theme_customization,
+          is_published: isPublished,
+          updated_at: new Date().toISOString(),
+        })
+
+      if (error) throw error
+
+      toast.success('Changes saved successfully!')
+    } catch (error) {
+      toast.error('Failed to save changes')
+      console.error('Save error:', error)
     } finally {
       setIsSaving(false)
     }
@@ -824,12 +852,7 @@ export default function AdminPanel() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
-          {loading ? (
-            <>
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading...</p>
-            </>
-          ) : !user ? (
+          {!user ? (
             <>
               <p className="text-gray-600 mb-4">Please sign in to access the admin panel</p>
               <button
@@ -979,11 +1002,19 @@ export default function AdminPanel() {
                 Preview
               </button>
               <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+              <button
                 onClick={handlePublish}
                 disabled={isSaving}
                 className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-xl shadow-sm hover:shadow-md transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Save className="w-4 h-4 mr-2" />
+                <Globe className="w-4 h-4 mr-2" />
                 {isSaving ? 'Publishing...' : isPublished ? 'Update' : 'Publish'}
               </button>
             </div>

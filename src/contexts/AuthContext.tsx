@@ -67,13 +67,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserData(data)
       } else if (error) {
         console.log('Error fetching user data:', error)
-        // If user record doesn't exist, we might need to create it
-        if (error.code === 'PGRST116') {
-          console.log('User record not found, this might be a new user')
+        // If user record doesn't exist, create it
+        if (error.code === 'PGRST116' || error.message.includes('No rows found')) {
+          console.log('User record not found, creating new user record')
+          await createUserRecord(userId)
         }
       }
     } catch (error) {
       console.error('Error fetching user data:', error)
+    }
+  }
+
+  const createUserRecord = async (userId: string) => {
+    try {
+      const { data: authUser } = await supabase.auth.getUser()
+      if (!authUser.user) return
+
+      const email = authUser.user.email
+      const username = email?.split('@')[0] || `user_${userId.slice(0, 8)}`
+
+      // Create user record
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .insert([
+          {
+            id: userId,
+            email: email,
+            username: username,
+          }
+        ])
+        .select()
+        .single()
+
+      if (userError) {
+        console.error('Failed to create user record:', userError)
+        return
+      }
+
+      // Create business card record
+      const { error: cardError } = await supabase
+        .from('business_cards')
+        .insert([
+          {
+            user_id: userId,
+            personal_info: {},
+            business_info: {},
+            social_media: {},
+            office_showcase: { images: [] },
+            media_integration: {},
+            google_reviews: {},
+            theme_customization: { template: 'modern', primary_color: '#3B82F6', secondary_color: '#8B5CF6' },
+            is_published: false,
+          }
+        ])
+
+      if (cardError) {
+        console.warn('Failed to create business card:', cardError.message)
+      }
+
+      setUserData(userData)
+      console.log('User record created successfully')
+    } catch (error) {
+      console.error('Error creating user record:', error)
     }
   }
 
@@ -98,11 +153,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (authError) throw authError
     if (!authData.user) throw new Error('Failed to create user')
 
-    // Wait a moment for the auth user to be fully created
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
     // Create user record in our custom table
-    const { error: userError } = await supabase
+    const { data: userData, error: userError } = await supabase
       .from('users')
       .insert([
         {
@@ -111,9 +163,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           username,
         }
       ])
+      .select()
+      .single()
 
     if (userError) {
-      // If user creation fails, clean up the auth user
       console.error('Failed to create user record:', userError)
       throw new Error(userError.message)
     }
@@ -139,6 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Failed to create business card:', cardError.message)
     }
 
+    setUserData(userData)
     return authData
   }
 

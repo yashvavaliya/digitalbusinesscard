@@ -52,10 +52,7 @@ export default function AuthPage() {
     try {
       await signUp(data.email, data.password, data.username)
       toast.success('Account created successfully!')
-      // Wait a moment for the auth state to update
-      setTimeout(() => {
-        navigate('/businesscard/admin')
-      }, 1000)
+      navigate('/businesscard/admin')
     } catch (error: any) {
       toast.error(error.message || 'Failed to create account')
     }
@@ -65,10 +62,7 @@ export default function AuthPage() {
     try {
       await signIn(data.email, data.password)
       toast.success('Signed in successfully!')
-      // Wait a moment for the auth state to update
-      setTimeout(() => {
-        navigate('/businesscard/admin')
-      }, 1000)
+      navigate('/businesscard/admin')
     } catch (error: any) {
       toast.error(error.message || 'Failed to sign in')
     }
