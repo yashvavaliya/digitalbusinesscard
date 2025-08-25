@@ -52,7 +52,10 @@ export default function AuthPage() {
     try {
       await signUp(data.email, data.password, data.username)
       toast.success('Account created successfully!')
-      navigate('/businesscard/admin')
+      // Wait a moment for the auth state to update
+      setTimeout(() => {
+        navigate('/businesscard/admin')
+      }, 1000)
     } catch (error: any) {
       toast.error(error.message || 'Failed to create account')
     }
@@ -62,7 +65,10 @@ export default function AuthPage() {
     try {
       await signIn(data.email, data.password)
       toast.success('Signed in successfully!')
-      // The redirect will be handled by the auth context effect
+      // Wait a moment for the auth state to update
+      setTimeout(() => {
+        navigate('/businesscard/admin')
+      }, 1000)
     } catch (error: any) {
       toast.error(error.message || 'Failed to sign in')
     }

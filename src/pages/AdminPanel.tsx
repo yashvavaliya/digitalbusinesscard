@@ -123,10 +123,15 @@ export default function AdminPanel() {
 
   // Redirect to auth if not logged in
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
+      console.log('No user found, redirecting to auth')
       navigate('/businesscard', { replace: true })
+    } else if (user && !userData && !loading) {
+      console.log('User found but no user data, might be a new user')
+      // Try to fetch user data again
+      fetchBusinessCard()
     }
-  }, [user, navigate])
+  }, [user, userData, loading, navigate])
 
   // Set initial username when userData loads
   useEffect(() => {

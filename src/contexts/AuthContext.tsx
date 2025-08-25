@@ -55,14 +55,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserData = async (userId: string) => {
     try {
+      console.log('Fetching user data for:', userId)
       const { data, error } = await supabase
         .from('users')
         .select('*')
         .eq('id', userId)
         .single()
       
-      if (!error && data) {
+      if (data && !error) {
+        console.log('User data found:', data)
         setUserData(data)
+      } else if (error) {
+        console.log('Error fetching user data:', error)
+        // If user record doesn't exist, we might need to create it
+        if (error.code === 'PGRST116') {
+          console.log('User record not found, this might be a new user')
+        }
       }
     } catch (error) {
       console.error('Error fetching user data:', error)
