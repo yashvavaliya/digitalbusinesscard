@@ -16,6 +16,14 @@ import {
   LogOut,
   Settings,
   Globe,
+  MapPin,
+  Video,
+  Star,
+  Palette,
+  Image,
+  Plus,
+  Trash2,
+  Eye,
 } from 'lucide-react'
 
 interface BusinessCardData {
@@ -46,20 +54,51 @@ interface BusinessCardData {
     discord?: string
     telegram?: string
   }
+  office_showcase: {
+    images?: string[]
+    location?: string
+    google_maps_embed?: string
+  }
+  media_integration: {
+    youtube_channel?: string
+    instagram_reels?: string
+    featured_video?: string
+  }
+  google_reviews: {
+    review_link?: string
+    rating?: number
+    review_text?: string
+  }
+  theme_customization: {
+    template?: string
+    primary_color?: string
+    secondary_color?: string
+    font_family?: string
+    layout?: string
+  }
 }
 
 const SOCIAL_PLATFORMS = [
-  { key: 'instagram', name: 'Instagram', baseUrl: 'https://instagram.com/' },
-  { key: 'twitter', name: 'Twitter', baseUrl: 'https://twitter.com/' },
-  { key: 'youtube', name: 'YouTube', baseUrl: 'https://youtube.com/c/' },
-  { key: 'linkedin', name: 'LinkedIn', baseUrl: 'https://linkedin.com/in/' },
-  { key: 'facebook', name: 'Facebook', baseUrl: 'https://facebook.com/' },
-  { key: 'github', name: 'GitHub', baseUrl: 'https://github.com/' },
-  { key: 'reddit', name: 'Reddit', baseUrl: 'https://reddit.com/u/' },
-  { key: 'pinterest', name: 'Pinterest', baseUrl: 'https://pinterest.com/' },
-  { key: 'snapchat', name: 'Snapchat', baseUrl: 'https://snapchat.com/add/' },
-  { key: 'discord', name: 'Discord', baseUrl: 'https://discord.gg/' },
-  { key: 'telegram', name: 'Telegram', baseUrl: 'https://t.me/' },
+  { key: 'instagram', name: 'Instagram', baseUrl: 'https://instagram.com/', icon: '📷' },
+  { key: 'twitter', name: 'Twitter/X', baseUrl: 'https://twitter.com/', icon: '🐦' },
+  { key: 'youtube', name: 'YouTube', baseUrl: 'https://youtube.com/c/', icon: '📺' },
+  { key: 'linkedin', name: 'LinkedIn', baseUrl: 'https://linkedin.com/in/', icon: '💼' },
+  { key: 'facebook', name: 'Facebook', baseUrl: 'https://facebook.com/', icon: '📘' },
+  { key: 'github', name: 'GitHub', baseUrl: 'https://github.com/', icon: '🐙' },
+  { key: 'reddit', name: 'Reddit', baseUrl: 'https://reddit.com/u/', icon: '🤖' },
+  { key: 'pinterest', name: 'Pinterest', baseUrl: 'https://pinterest.com/', icon: '📌' },
+  { key: 'snapchat', name: 'Snapchat', baseUrl: 'https://snapchat.com/add/', icon: '👻' },
+  { key: 'discord', name: 'Discord', baseUrl: 'https://discord.gg/', icon: '🎮' },
+  { key: 'telegram', name: 'Telegram', baseUrl: 'https://t.me/', icon: '✈️' },
+]
+
+const THEME_TEMPLATES = [
+  { id: 'modern', name: 'Modern', preview: 'bg-gradient-to-br from-blue-500 to-purple-600' },
+  { id: 'classic', name: 'Classic', preview: 'bg-gradient-to-br from-gray-700 to-gray-900' },
+  { id: 'vibrant', name: 'Vibrant', preview: 'bg-gradient-to-br from-pink-500 to-orange-500' },
+  { id: 'nature', name: 'Nature', preview: 'bg-gradient-to-br from-green-500 to-teal-600' },
+  { id: 'elegant', name: 'Elegant', preview: 'bg-gradient-to-br from-indigo-600 to-purple-700' },
+  { id: 'minimal', name: 'Minimal', preview: 'bg-gradient-to-br from-slate-400 to-slate-600' },
 ]
 
 export default function AdminPanel() {
@@ -74,9 +113,14 @@ export default function AdminPanel() {
     personal_info: {},
     business_info: {},
     social_media: {},
+    office_showcase: { images: [] },
+    media_integration: {},
+    google_reviews: {},
+    theme_customization: { template: 'modern', primary_color: '#3B82F6', secondary_color: '#8B5CF6' },
   })
   const [isPublished, setIsPublished] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [previewMode, setPreviewMode] = useState(false)
 
   useEffect(() => {
     if (user && userData) {
@@ -98,12 +142,16 @@ export default function AdminPanel() {
         personal_info: data.personal_info || {},
         business_info: data.business_info || {},
         social_media: data.social_media || {},
+        office_showcase: data.office_showcase || { images: [] },
+        media_integration: data.media_integration || {},
+        google_reviews: data.google_reviews || {},
+        theme_customization: data.theme_customization || { template: 'modern', primary_color: '#3B82F6', secondary_color: '#8B5CF6' },
       })
       setIsPublished(data.is_published || false)
     }
   }
 
-  const handleInputChange = (section: keyof BusinessCardData, field: string, value: string) => {
+  const handleInputChange = (section: keyof BusinessCardData, field: string, value: any) => {
     setBusinessCard(prev => ({
       ...prev,
       [section]: {
@@ -135,6 +183,42 @@ export default function AdminPanel() {
     } catch (error) {
       toast.error('Failed to upload file')
     }
+  }
+
+  const handleMultipleFileUpload = async (files: FileList, section: keyof BusinessCardData, field: string) => {
+    if (!files || files.length === 0) return
+
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${user?.id}/${section}_${field}_${Date.now()}_${Math.random()}.${fileExt}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('uploads')
+          .upload(fileName, file)
+
+        if (uploadError) throw uploadError
+
+        const { data } = supabase.storage
+          .from('uploads')
+          .getPublicUrl(fileName)
+
+        return data.publicUrl
+      })
+
+      const uploadedUrls = await Promise.all(uploadPromises)
+      const currentImages = (businessCard.office_showcase?.images || [])
+      handleInputChange(section, field, [...currentImages, ...uploadedUrls])
+      toast.success(`${uploadedUrls.length} files uploaded successfully!`)
+    } catch (error) {
+      toast.error('Failed to upload files')
+    }
+  }
+
+  const removeOfficeImage = (index: number) => {
+    const currentImages = businessCard.office_showcase?.images || []
+    const updatedImages = currentImages.filter((_, i) => i !== index)
+    handleInputChange('office_showcase', 'images', updatedImages)
   }
 
   const handleUsernameUpdate = async () => {
@@ -183,6 +267,10 @@ export default function AdminPanel() {
           personal_info: businessCard.personal_info,
           business_info: businessCard.business_info,
           social_media: businessCard.social_media,
+          office_showcase: businessCard.office_showcase,
+          media_integration: businessCard.media_integration,
+          google_reviews: businessCard.google_reviews,
+          theme_customization: businessCard.theme_customization,
           is_published: true,
           updated_at: new Date().toISOString(),
         })
@@ -190,7 +278,7 @@ export default function AdminPanel() {
       if (error) throw error
 
       setIsPublished(true)
-      toast.success('Business card published successfully!')
+      toast.success('🎉 Business card published successfully!')
     } catch (error) {
       toast.error('Failed to publish business card')
     } finally {
@@ -264,7 +352,7 @@ export default function AdminPanel() {
             <img
               src={businessCard.personal_info.photo}
               alt="Profile"
-              className="w-16 h-16 rounded-full object-cover"
+              className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
             />
           )}
           <div className="flex space-x-2">
@@ -330,60 +418,62 @@ export default function AdminPanel() {
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Business Logo</label>
-        <div className="flex items-center space-x-4">
-          {businessCard.business_info.logo && (
-            <img
-              src={businessCard.business_info.logo}
-              alt="Logo"
-              className="w-16 h-16 rounded object-cover"
-            />
-          )}
-          <label className="cursor-pointer inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            <Upload className="w-4 h-4 mr-2" />
-            Upload Logo
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handleFileUpload(file, 'business_info', 'logo')
-              }}
-            />
-          </label>
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Business Card Design</label>
-        <div className="flex items-center space-x-4">
-          {businessCard.business_info.business_card && (
-            <img
-              src={businessCard.business_info.business_card}
-              alt="Business Card"
-              className="w-32 h-20 rounded object-cover"
-            />
-          )}
-          <div className="flex space-x-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Business Logo</label>
+          <div className="flex items-center space-x-4">
+            {businessCard.business_info.logo && (
+              <img
+                src={businessCard.business_info.logo}
+                alt="Logo"
+                className="w-16 h-16 rounded object-cover border-2 border-gray-200"
+              />
+            )}
             <label className="cursor-pointer inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
               <Upload className="w-4 h-4 mr-2" />
-              Upload Design
+              Upload Logo
               <input
                 type="file"
                 accept="image/*"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
-                  if (file) handleFileUpload(file, 'business_info', 'business_card')
+                  if (file) handleFileUpload(file, 'business_info', 'logo')
                 }}
               />
             </label>
-            <button className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
-              <Camera className="w-4 h-4 mr-2" />
-              Camera
-            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Business Card Design</label>
+          <div className="flex items-center space-x-4">
+            {businessCard.business_info.business_card && (
+              <img
+                src={businessCard.business_info.business_card}
+                alt="Business Card"
+                className="w-32 h-20 rounded object-cover border-2 border-gray-200"
+              />
+            )}
+            <div className="flex space-x-2">
+              <label className="cursor-pointer inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Design
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleFileUpload(file, 'business_info', 'business_card')
+                  }}
+                />
+              </label>
+              <button className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors">
+                <Camera className="w-4 h-4 mr-2" />
+                Camera
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -397,7 +487,8 @@ export default function AdminPanel() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {SOCIAL_PLATFORMS.map(platform => (
           <div key={platform.key} className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium text-gray-700 flex items-center">
+              <span className="mr-2">{platform.icon}</span>
               {platform.name} Username
             </label>
             <input
@@ -408,13 +499,13 @@ export default function AdminPanel() {
               placeholder={`Your ${platform.name} username`}
             />
             {(businessCard.social_media as any)[platform.key] && (
-              <div className="flex items-center text-sm text-blue-600">
+              <div className="flex items-center text-sm text-blue-600 bg-blue-50 p-2 rounded-lg">
                 <Globe className="w-4 h-4 mr-1" />
                 <a 
                   href={`${platform.baseUrl}${(businessCard.social_media as any)[platform.key]}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="hover:underline"
+                  className="hover:underline truncate"
                 >
                   {`${platform.baseUrl}${(businessCard.social_media as any)[platform.key]}`}
                 </a>
@@ -426,10 +517,287 @@ export default function AdminPanel() {
     </div>
   )
 
+  const renderOfficeShowcase = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Office / Workplace Showcase</h2>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Office Images</label>
+        <div className="space-y-4">
+          {businessCard.office_showcase?.images && businessCard.office_showcase.images.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {businessCard.office_showcase.images.map((image, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={image}
+                    alt={`Office ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg border-2 border-gray-200"
+                  />
+                  <button
+                    onClick={() => removeOfficeImage(index)}
+                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <label className="cursor-pointer inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Office Images
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files) handleMultipleFileUpload(e.target.files, 'office_showcase', 'images')
+              }}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Office Location</label>
+        <input
+          type="text"
+          value={businessCard.office_showcase?.location || ''}
+          onChange={(e) => handleInputChange('office_showcase', 'location', e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Office address or location"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Google Maps Embed URL</label>
+        <input
+          type="url"
+          value={businessCard.office_showcase?.google_maps_embed || ''}
+          onChange={(e) => handleInputChange('office_showcase', 'google_maps_embed', e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Google Maps embed URL"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Get embed URL from Google Maps → Share → Embed a map
+        </p>
+      </div>
+    </div>
+  )
+
+  const renderMediaIntegration = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Video & Media Integration</h2>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">YouTube Channel</label>
+        <input
+          type="url"
+          value={businessCard.media_integration?.youtube_channel || ''}
+          onChange={(e) => handleInputChange('media_integration', 'youtube_channel', e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="https://youtube.com/c/yourchannel"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Instagram Reels/Video Link</label>
+        <input
+          type="url"
+          value={businessCard.media_integration?.instagram_reels || ''}
+          onChange={(e) => handleInputChange('media_integration', 'instagram_reels', e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="https://instagram.com/reel/..."
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Featured Video URL</label>
+        <input
+          type="url"
+          value={businessCard.media_integration?.featured_video || ''}
+          onChange={(e) => handleInputChange('media_integration', 'featured_video', e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="YouTube, Vimeo, or other video URL"
+        />
+      </div>
+
+      {businessCard.media_integration?.featured_video && (
+        <div className="bg-gray-50 p-4 rounded-xl">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Video Preview</h4>
+          <div className="aspect-video bg-gray-200 rounded-lg flex items-center justify-center">
+            <Video className="w-12 h-12 text-gray-400" />
+          </div>
+          <p className="text-xs text-gray-500 mt-2">Video will be embedded in your business card</p>
+        </div>
+      )}
+    </div>
+  )
+
+  const renderGoogleReviews = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Google Business Reviews</h2>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Google Review Link</label>
+        <input
+          type="url"
+          value={businessCard.google_reviews?.review_link || ''}
+          onChange={(e) => handleInputChange('google_reviews', 'review_link', e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Google Business review link"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Rating (1-5)</label>
+          <input
+            type="number"
+            min="1"
+            max="5"
+            step="0.1"
+            value={businessCard.google_reviews?.rating || ''}
+            onChange={(e) => handleInputChange('google_reviews', 'rating', parseFloat(e.target.value))}
+            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="4.5"
+          />
+        </div>
+
+        <div className="flex items-center space-x-1 pt-8">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Star
+              key={star}
+              className={`w-6 h-6 ${
+                star <= (businessCard.google_reviews?.rating || 0)
+                  ? 'text-yellow-400 fill-current'
+                  : 'text-gray-300'
+              }`}
+            />
+          ))}
+          <span className="ml-2 text-sm text-gray-600">
+            {businessCard.google_reviews?.rating || 0}/5
+          </span>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Review Text Preview</label>
+        <textarea
+          value={businessCard.google_reviews?.review_text || ''}
+          onChange={(e) => handleInputChange('google_reviews', 'review_text', e.target.value)}
+          rows={3}
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Sample review text to display..."
+        />
+      </div>
+    </div>
+  )
+
+  const renderThemeCustomization = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Card Theme & Design</h2>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-4">Choose Template</label>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {THEME_TEMPLATES.map((template) => (
+            <button
+              key={template.id}
+              onClick={() => handleInputChange('theme_customization', 'template', template.id)}
+              className={`p-4 rounded-xl border-2 transition-all ${
+                businessCard.theme_customization?.template === template.id
+                  ? 'border-blue-500 ring-2 ring-blue-200'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className={`w-full h-20 rounded-lg mb-2 ${template.preview}`}></div>
+              <p className="text-sm font-medium text-gray-700">{template.name}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Primary Color</label>
+          <div className="flex items-center space-x-3">
+            <input
+              type="color"
+              value={businessCard.theme_customization?.primary_color || '#3B82F6'}
+              onChange={(e) => handleInputChange('theme_customization', 'primary_color', e.target.value)}
+              className="w-12 h-12 rounded-lg border border-gray-300 cursor-pointer"
+            />
+            <input
+              type="text"
+              value={businessCard.theme_customization?.primary_color || '#3B82F6'}
+              onChange={(e) => handleInputChange('theme_customization', 'primary_color', e.target.value)}
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="#3B82F6"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Secondary Color</label>
+          <div className="flex items-center space-x-3">
+            <input
+              type="color"
+              value={businessCard.theme_customization?.secondary_color || '#8B5CF6'}
+              onChange={(e) => handleInputChange('theme_customization', 'secondary_color', e.target.value)}
+              className="w-12 h-12 rounded-lg border border-gray-300 cursor-pointer"
+            />
+            <input
+              type="text"
+              value={businessCard.theme_customization?.secondary_color || '#8B5CF6'}
+              onChange={(e) => handleInputChange('theme_customization', 'secondary_color', e.target.value)}
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="#8B5CF6"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Font Family</label>
+        <select
+          value={businessCard.theme_customization?.font_family || 'Inter'}
+          onChange={(e) => handleInputChange('theme_customization', 'font_family', e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="Inter">Inter</option>
+          <option value="Roboto">Roboto</option>
+          <option value="Open Sans">Open Sans</option>
+          <option value="Lato">Lato</option>
+          <option value="Montserrat">Montserrat</option>
+          <option value="Poppins">Poppins</option>
+        </select>
+      </div>
+
+      <div className="bg-gray-50 p-6 rounded-xl">
+        <h4 className="text-lg font-semibold text-gray-900 mb-4">Live Preview</h4>
+        <div 
+          className="w-full h-48 rounded-xl flex items-center justify-center text-white font-semibold text-lg"
+          style={{
+            background: `linear-gradient(135deg, ${businessCard.theme_customization?.primary_color || '#3B82F6'}, ${businessCard.theme_customization?.secondary_color || '#8B5CF6'})`,
+            fontFamily: businessCard.theme_customization?.font_family || 'Inter'
+          }}
+        >
+          {businessCard.personal_info?.name || 'Your Name'}
+        </div>
+      </div>
+    </div>
+  )
+
   const menuItems = [
     { id: 'personal', label: 'Personal Info', icon: User },
     { id: 'business', label: 'Business Info', icon: Building },
     { id: 'social', label: 'Social Media', icon: Share2 },
+    { id: 'office', label: 'Office Showcase', icon: MapPin },
+    { id: 'media', label: 'Video & Media', icon: Video },
+    { id: 'reviews', label: 'Google Reviews', icon: Star },
+    { id: 'theme', label: 'Theme & Design', icon: Palette },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]
 
@@ -496,7 +864,7 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          <nav className="p-4 space-y-2">
+          <nav className="p-4 space-y-2 flex-1 overflow-y-auto">
             {menuItems.map(item => {
               const Icon = item.icon
               return (
@@ -545,18 +913,31 @@ export default function AdminPanel() {
                 {activeSection === 'personal' && 'Personal Information'}
                 {activeSection === 'business' && 'Business Information'}
                 {activeSection === 'social' && 'Social Media'}
+                {activeSection === 'office' && 'Office Showcase'}
+                {activeSection === 'media' && 'Video & Media Integration'}
+                {activeSection === 'reviews' && 'Google Business Reviews'}
+                {activeSection === 'theme' && 'Theme & Design Customization'}
                 {activeSection === 'settings' && 'Settings'}
               </h2>
             </div>
 
-            <button
-              onClick={handlePublish}
-              disabled={isSaving}
-              className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-xl shadow-sm hover:shadow-md transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              {isSaving ? 'Publishing...' : isPublished ? 'Update' : 'Publish'}
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setPreviewMode(!previewMode)}
+                className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Preview
+              </button>
+              <button
+                onClick={handlePublish}
+                disabled={isSaving}
+                className="inline-flex items-center px-6 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-medium rounded-xl shadow-sm hover:shadow-md transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                {isSaving ? 'Publishing...' : isPublished ? 'Update' : 'Publish'}
+              </button>
+            </div>
           </div>
 
           {/* Content */}
@@ -566,10 +947,17 @@ export default function AdminPanel() {
                 {activeSection === 'personal' && renderPersonalInfo()}
                 {activeSection === 'business' && renderBusinessInfo()}
                 {activeSection === 'social' && renderSocialMedia()}
+                {activeSection === 'office' && renderOfficeShowcase()}
+                {activeSection === 'media' && renderMediaIntegration()}
+                {activeSection === 'reviews' && renderGoogleReviews()}
+                {activeSection === 'theme' && renderThemeCustomization()}
                 {activeSection === 'settings' && (
                   <div className="space-y-6">
                     <h2 className="text-2xl font-bold text-gray-900 mb-6">Settings</h2>
-                    <p className="text-gray-600">Settings panel will be implemented here.</p>
+                    <div className="bg-gray-50 p-6 rounded-xl">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Account Settings</h3>
+                      <p className="text-gray-600">Advanced settings and account management options will be available here.</p>
+                    </div>
                   </div>
                 )}
               </div>
